@@ -1,3 +1,6 @@
+#ifndef UCI_HPP
+#define UCI_HPP
+
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -6,10 +9,17 @@
 
 class UciHandler {
 public:
-    UciHandler() {
-        commands_["uci"]        = [this](auto& stream) { handle_uci(stream); };
-        commands_["isready"]    = [this](auto& stream) { handle_isready(stream); };
-        commands_["ucinewgame"] = [this](auto& stream) { handle_ucinewgame(stream); };
-        commands_["position"]   = [this](auto& stream) { handle_position(stream); };
-        commands_["go"]         = [this](auto& stream) { handle_go(stream); };
-    }
+    UciHandler();
+    void loop();
+
+private:
+    std::unordered_map<std::string, std::function<void(std::istringstream&)>> commands_;
+
+    void handle_uci(std::istringstream& stream);
+    void handle_isready(std::istringstream& stream);
+    void handle_ucinewgame(std::istringstream& stream);
+    void handle_position(std::istringstream& stream);
+    void handle_go(std::istringstream& stream);
+};
+
+#endif
