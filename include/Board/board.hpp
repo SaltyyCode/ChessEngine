@@ -4,9 +4,12 @@
 #include <cstdint>
 #include <string>
 #include <iostream>
+#include <sstream>
+#include <cctype>
 
 using U64 = std::uint64_t;
 
+const std::string START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 enum Color { WHITE, BLACK, BOTH };
 enum Piece { PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING };
 
@@ -43,6 +46,11 @@ public:
     void reset();
     void update_occupancies();
     void print() const;
+    void parse_fen(const std::string& fen);
+
+private:
+    void parse_pieces(const std::string& placement);
+    void parse_state(const std::string& side, const std::string& castling, const std::string& ep);
 };
 
 #endif
