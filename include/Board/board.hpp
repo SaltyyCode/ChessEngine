@@ -6,6 +6,7 @@
 #include <iostream>
 #include <sstream>
 #include <cctype>
+#include "Board/move.hpp"
 
 using U64 = std::uint64_t;
 
@@ -47,10 +48,17 @@ public:
     void update_occupancies();
     void print() const;
     void parse_fen(const std::string& fen);
+    void make_move(Move move);
 
 private:
     void parse_pieces(const std::string& placement);
     void parse_state(const std::string& side, const std::string& castling, const std::string& ep);
+    
+    Piece get_piece_at(int sq, Color color) const;
+    void remove_captured_piece(int target, int flags, Color them);
+    void place_moved_piece(int target, Piece moved_piece, int flags, Color us);
+    void move_castling_rook(int flags, Color us);
+    void update_castling_rights(int source, int target, Piece moved_piece, Color us);
 };
 
 #endif
