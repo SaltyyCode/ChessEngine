@@ -1,8 +1,14 @@
 #include "Board/attacks.hpp"
+#include "Board/board.hpp"
+#include "Board/magics.hpp"
 
 U64 pawn_attacks[2][64];
 U64 knight_attacks[64];
 U64 king_attacks[64];
+U64 bishop_masks[64];
+U64 rook_masks[64];
+U64 bishop_attacks[64][512];
+U64 rook_attacks[64][4096];
 
 U64 mask_pawn_attacks(int side, int sq)
 {
@@ -141,4 +147,92 @@ U64 rook_attacks_on_the_fly(int sq, U64 block)
     }
 
     return attacks;
+}
+
+U64 set_occupancy(int index, int bits_in_mask, U64 attack_mask)
+{
+    U64 occupancy = 0ULL;
+
+    for (int count = 0; count < bits_in_mask; count++) {
+        int sq = __builtin_ctzll(attack_mask);
+        pop_bit(attack_mask, sq);
+
+        if (index & (1 << count)) {
+            occupancy |= (1ULL << sq);
+        }
+    }
+
+    return occupancy;
+}
+
+void init_sliders_attacks(bool is_bishop)
+{
+    for (int sq = 0; sq < 64; ++sq) {
+        bishop_masks[sq] = mask_bishop_attacks(sq);
+        rook_masks[sq]   = mask_rook_attacks(sq);
+
+        U64 mask = is_bishop ? bishop_masks[sq] : rook_masks[sq];
+        int bit_count = __builtin_popcountll(mask);
+        int occupancy_indices = (1 << bit_count);
+
+        for (int index = 0; index < occupancy_indices; ++index) {
+            if (is_bishop) {
+                U64 occ = set_occupancy(index, bit_count, mask);
+                int magic_index = (occ * bishop_magics[sq]) >> (64 - bishop_relevant_bits[sq]);
+                bishop_attacks[sq][magic_index] = bishop_attacks_on_the_fly(sq, occ);
+            } else {
+                U64 occ = set_occupancy(index, bit_count, mask);
+                int magic_index = (occ * rook_magics[sq]) >> (64 - rook_relevant_bits[sq]);
+                rook_attacks[sq][magic_index] = rook_attacks_on_the_fly(sq, occ);
+            }
+        }
+    }
+}
+
+void init_all_attacks()
+{
+    init_leaper_attacks();
+    init_sliders_attacks(true);
+    init_sliders_attacks(false);
+}
+
+
+U64 get_bishop_attacks(int sq, U64 occupancy)
+{
+    occupancy &= bishop_masks[sq];
+    occupancy *= bishop_magics[sq];
+    occupancy >>= (64 - bishop_relevant_bits[sq]);
+    return bishop_attacks[sq][occupancy];
+}
+
+U64 get_rook_attacks(int sq, U64 occupancy)
+{
+    occupancy &= rook_masks[sq];
+    occupancy *= rook_magics[sq];
+    occupancy >>= (64 - rook_relevant_bits[sq]);
+    return rook_attacks[sq][occupancy];
+}
+
+U64 get_queen_attacks(int sq, U64 occupancy)
+{
+    return get_bishop_attacks(sq, occupancy) | get_rook_attacks(sq, occupancy);
+}
+
+bool Board::is_square_attacked(int sq, Color side) const
+{
+
+    Color us = (side == WHITE) ? BLACK : WHITE;
+    if (pawn_attacks[us][sq] & piece_bitboards[side][PAWN]) return true;
+
+    if (knight_attacks[sq] & piece_bitboards[side][KNIGHT]) return true;
+
+    if (king_attacks[sq] & piece_bitboards[side][KING]) return true;
+
+    U64 bishop_eq = piece_bitboards[side][BISHOP] | piece_bitboards[side][QUEEN];
+    if (get_bishop_attacks(sq, occupancies[BOTH]) & bishop_eq) return true;
+
+    U64 rook_eq = piece_bitboards[side][ROOK] | piece_bitboards[side][QUEEN];
+    if (get_rook_attacks(sq, occupancies[BOTH]) & rook_eq) return true;
+
+    return false;
 }
