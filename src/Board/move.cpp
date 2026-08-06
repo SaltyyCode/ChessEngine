@@ -71,6 +71,12 @@ void Board::make_move(Move move)
     Color us = side_to_move;
     Color them = (us == WHITE) ? BLACK : WHITE;
 
+    int captured = -1;
+    if (is_capture(move)) {
+        captured = (flags == FLAG_EN_PASSANT) ? PAWN : get_piece_at(target, them);
+    }
+    history_.push_back({en_passant, castling_rights, captured});
+
     Piece moved_piece = get_piece_at(source, us);
     pop_bit(piece_bitboards[us][moved_piece], source);
 
@@ -87,5 +93,61 @@ void Board::make_move(Move move)
 
     update_castling_rights(source, target, moved_piece, us);
     side_to_move = them;
+    update_occupancies();
+}
+
+void Board::restore_captured_piece(int target, int flags, int captured_piece, Color them)
+{
+    if (captured_piece == -1) return;
+
+    if (flags == FLAG_EN_PASSANT) {
+        int ep_pawn_sq = (them == BLACK) ? (target - 8) : (target + 8);
+        set_bit(piece_bitboards[them][PAWN], ep_pawn_sq);
+    } else {
+        set_bit(piece_bitboards[them][captured_piece], target);
+    }
+}
+
+void Board::unmake_castling_rook(int flags, Color us)
+{
+    if (flags == FLAG_KING_CASTLE) {
+        if (us == WHITE) { pop_bit(piece_bitboards[WHITE][ROOK], F1); set_bit(piece_bitboards[WHITE][ROOK], H1); }
+        else             { pop_bit(piece_bitboards[BLACK][ROOK], F8); set_bit(piece_bitboards[BLACK][ROOK], H8); }
+    } else if (flags == FLAG_QUEEN_CASTLE) {
+        if (us == WHITE) { pop_bit(piece_bitboards[WHITE][ROOK], D1); set_bit(piece_bitboards[WHITE][ROOK], A1); }
+        else             { pop_bit(piece_bitboards[BLACK][ROOK], D8); set_bit(piece_bitboards[BLACK][ROOK], A8); }
+    }
+}
+
+void Board::unmake_move(Move move)
+{
+    if (history_.empty()) return;
+
+    State state = history_.back();
+    history_.pop_back();
+
+    side_to_move = (side_to_move == WHITE) ? BLACK : WHITE;
+    Color us = side_to_move;
+    Color them = (us == WHITE) ? BLACK : WHITE;
+
+    int source = get_move_source(move);
+    int target = get_move_target(move);
+    int flags  = get_move_flags(move);
+
+    if (is_promotion(move)) {
+        Piece promo_piece = get_piece_at(target, us);
+        pop_bit(piece_bitboards[us][promo_piece], target);
+        set_bit(piece_bitboards[us][PAWN], source);
+    } else {
+        Piece moved_piece = get_piece_at(target, us);
+        pop_bit(piece_bitboards[us][moved_piece], target);
+        set_bit(piece_bitboards[us][moved_piece], source);
+    }
+
+    restore_captured_piece(target, flags, state.captured_piece, them);
+    unmake_castling_rook(flags, us);
+    en_passant = state.en_passant;
+    castling_rights = state.castling_rights;
+
     update_occupancies();
 }
