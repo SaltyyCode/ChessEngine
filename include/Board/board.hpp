@@ -6,6 +6,7 @@
 #include <iostream>
 #include <sstream>
 #include <cctype>
+#include <vector>
 #include "Board/move.hpp"
 
 using U64 = std::uint64_t;
@@ -26,6 +27,12 @@ enum Square {
 };
 
 enum Castling { WK = 1, WQ = 2, BK = 4, BQ = 8 };
+
+struct State {
+    Square en_passant;
+    uint8_t castling_rights;
+    int captured_piece;
+};
 
 inline void set_bit(U64& bb, int sq) { bb |= (1ULL << sq); }
 inline bool get_bit(U64 bb, int sq) { return (bb >> sq) & 1ULL; }
@@ -49,8 +56,10 @@ public:
     void print() const;
     void parse_fen(const std::string& fen);
     void make_move(Move move);
+    void unmake_move(Move move);
 
 private:
+    std::vector<State> history_;
     void parse_pieces(const std::string& placement);
     void parse_state(const std::string& side, const std::string& castling, const std::string& ep);
     
@@ -59,6 +68,9 @@ private:
     void place_moved_piece(int target, Piece moved_piece, int flags, Color us);
     void move_castling_rook(int flags, Color us);
     void update_castling_rights(int source, int target, Piece moved_piece, Color us);
+
+    void restore_captured_piece(int target, int flags, int captured_piece, Color them);
+    void unmake_castling_rook(int flags, Color us);
 };
 
 #endif
