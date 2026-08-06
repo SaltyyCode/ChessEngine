@@ -1,4 +1,5 @@
 #include "Uci/uci.hpp"
+#include "Board/board.hpp"
 
 UciHandler::UciHandler() {
     commands_["uci"]        = [this](auto& s) { handle_uci(s); };
@@ -38,22 +39,36 @@ void UciHandler::handle_isready(std::istringstream& stream)
 
 void UciHandler::handle_ucinewgame(std::istringstream& stream)
 {
-    //Reinitialisation du jeu
+    board_.reset();
 }
 
 void UciHandler::handle_position(std::istringstream& stream)
 {
-    //Parsing de la position
+    std::string type;
+    stream >> type;
+
+    if (type == "startpos") {
+        board_.parse_fen(START_FEN);
+    } else if (type == "fen") {
+        std::string fen_part, fen;
+        for (int i = 0; i < 6 && stream >> fen_part; ++i) {
+            fen += fen_part + (i < 5 ? " " : "");
+        }
+        board_.parse_fen(fen);
+    }
+
+    std::string moves_token;
+    if (stream >> moves_token && moves_token == "moves") {
+        std::string move_str;
+        while (stream >> move_str) {
+            //TODO : Ajouter moove
+        }
+    }
+    board_.print();
 }
 
 void UciHandler::handle_go(std::istringstream& stream)
 {
-    // Recherche et envoi du meilleur coup
     std::cout << "bestmove e2e4" << std::endl;
 }
 
-int main() {
-    UciHandler uci;
-    uci.loop();
-    return 0;
-}
