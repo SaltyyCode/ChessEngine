@@ -57,6 +57,7 @@ public:
     void parse_fen(const std::string& fen);
     void make_move(Move move);
     void unmake_move(Move move);
+    bool is_square_attacked(int sq, Color side) const;
 
 private:
     std::vector<State> history_;
